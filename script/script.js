@@ -5,7 +5,7 @@ const SIZE = 2 ** N
 const TL_height = 0
 const TR_height = 0
 const BL_height = 0
-const BR_height = 1
+const BR_height = 0
 
 const PX_SIZE = 1
 const MIN = 0
