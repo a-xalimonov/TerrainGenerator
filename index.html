@@ -8,12 +8,15 @@
         -->
     </head>
     <body>
-        <canvas class="canvas" width="1400" height="600"></canvas><br>
+        <canvas class="canvas" id="canvas-gray" width="513" height="513"></canvas>
+        <canvas class="canvas" id="canvas-rgb" width="513" height="513"></canvas><br>
 
-        <input class="range" type="range" min="0" max="1" step="0.02">
-        <label class="range-label">0.5</label>
+        <input id="size" type="number" value="9" min="1" max="20"><br>
+        <input id="range" type="range" min="0" max="1" step="0.02">
+        <label id="range-label">0.5</label>
         <br>
-        <button id="generate-button">Generate</button>
+        <button id="generate-button">Generate</button><br>
+        <a id="download-button" download>Скачать</a>
 
         <script type="text/javascript" src="script/script.js"></script>
     </body>
