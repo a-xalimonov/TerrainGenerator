@@ -12,14 +12,6 @@ const CANVAS_SIZE = 512
 const MIN = 0
 const MAX = 2
 
-const canvasGray = document.getElementById("canvas-gray")
-const canvasRGB = document.getElementById("canvas-rgb")
-const canvasFull = document.createElement("canvas")
-
-document.getElementById("generate-button").addEventListener("click", generate)
-document.getElementById("range").addEventListener("input", rangeUpdate)
-generate()
-
 //FUNCTIONS
 
 function rangeUpdate() {
@@ -27,182 +19,224 @@ function rangeUpdate() {
     document.getElementById('range-label').innerHTML = rangeValue
 }
 
-function generate() {
-    
-    N = document.getElementById("size").value
-    R = document.getElementById("range").value
-    SIZE = 2 ** N
-    
-    matrix = []
-    for (let i = 0; i <= SIZE; i++) {
-        matrix[i] = []
-    }
+function newMap() {
+    map = new Map(9)
+    gen = new Generator(map)
+    painter = new Painter(map)
 
-    matrix[0][0] = TL_height
-    matrix[0][SIZE] = TR_height
-    matrix[SIZE][0] = BL_height
-    matrix[SIZE][SIZE] = BR_height
-
-    canvasFull.height = SIZE + 1
-    canvasFull.width = SIZE + 1
-
-    algoritm(0, 0, N)
-    draw()
+    gen.generate()
+    painter.draw()
 }
 
-function draw() {
+//CLASSES
 
-    const ctxGray = canvasGray.getContext("2d")
-    const ctxRGB = canvasRGB.getContext("2d")
-    const ctxFull = canvasFull.getContext("2d")
+class Map {
 
-    const pxSize = Math.max(1, CANVAS_SIZE / SIZE)
-    const pxStep = Math.max(1, SIZE / CANVAS_SIZE)
+    constructor(_N) {
 
-    for (let j = 0; j < SIZE; j++) {
-        for (let i = 0; i < SIZE; i++) {
+        this.N = _N
+        this.SIZE = 2 ** _N
+        this.m = []
+        for (let i = 0; i <= this.SIZE; i++) {
+            this.m[i] = []
+        }
+        this.m[0][0] = TL_height
+        this.m[0][this.SIZE] = TR_height
+        this.m[this.SIZE][0] = BL_height
+        this.m[this.SIZE][this.SIZE] = BR_height
+    }
+}
 
-            // FULL SIZE            
-            ctxFull.fillStyle = getGrayColor(i, j)
-            ctxFull.fillRect(i, j, 1, 1)
+class Generator {
 
-            if (i % pxStep == 0 && j % pxStep == 0) {
-                // GRAY SMALL
-                ctxGray.fillStyle = ctxFull.fillStyle
-                ctxGray.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
+    constructor(_map) {
+        this.map = _map
 
-                // RGB SMALL
-                ctxRGB.fillStyle = getRGBColor(i, j)
-                ctxRGB.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
+        this.x = 0
+        this.y = 0
+        this.n = this.map.N
+        this.size = this.map.SIZE
+    }
+
+    setParameters(_x, _y, _n) {
+        this.x = _x
+        this.y = _y
+        this.n = _n
+        this.size = 2 ** _n
+    }
+
+    generate() {
+
+        this.r = document.getElementById("range").value
+        let step = this.size
+        let iter = 1 + this.map.N - this.n
+    
+        while (step > 1) {
+            this.diamond(step, iter)
+            this.square(step, iter)
+            step /= 2;
+            iter++
+        }
+    }
+
+    diamond(step, iter) {
+        
+        for (let y = this.y; y < this.y + this.size; y += step) {
+            for (let x = this.x; x < this.x + this.size; x += step) {
+
+                const half = step / 2
+                let average_height = 0
+
+                average_height += this.map.m[x][y]
+                average_height += this.map.m[x + step][y]
+                average_height += this.map.m[x][y + step]
+                average_height += this.map.m[x + step][y + step]
+                average_height /= 4
+                
+                const ri = this.r ** iter;
+                const random_height = ri * 2 * Math.random() - ri
+
+                this.map.m[x + half][y + half] = average_height + random_height
             }
-
         }
     }
-    document.getElementById("download-button").href = canvasFull.toDataURL()
-}
 
-function getGrayColor(x, y) {
+    square(step, iter) {
+
+        const half = step / 2
+
+        //first_generation
+        if (this.x == 0 && this.y == 0 && this.size == this.map.SIZE) {
     
-    const color = Math.trunc((0.5 + matrix[x][y]) * 255 / 1)
-    return `rgb(${color},${color},${color})`
-}
-
-function getRGBColor(x, y) {
-
-    if (matrix[x][y] < 0) {
-        const color = Math.trunc((0.5 + matrix[x][y]) * 255 / 1.5)
-        return `rgb(${color - 20},${color - 20},${60 + color})`
-    }
-    else {
-        const color = Math.trunc((0.5 + matrix[x][y]) * 255 / 1.5)
-        return `rgb(${color + 40},${60 + color},${color - 20})`
-    }
-
-/*    if (matrix[x][y] < 0.02) {
-        return '#2462c7'
-    }
-    else if (matrix[x][y] < 0.1) {
-        return '#207bbd'
-    }
-    else if (matrix[x][y] < 0.2) {
-        return '#99ba7d'
-    }
-    else if (matrix[x][y] < 0.6) {
-        return '#6ca665'
-    }
-    else if (matrix[x][y] < 0.8) {
-        return '#738067'
-    }
-    else {
-        return '#cccccc'
-    }*/
-}
-
-function algoritm(_x, _y, _n) {
-
-    const size = 2 ** _n
-    const iter_d = N - _n
-    let step = size
-
-    for (let i = 1 + iter_d; i <= N; i++) {
-        diamond(i, _x, _y, step, size)
-        square(i, _x, _y, step, size)
-        step /= 2;
-    }
-}
-
-function diamond(iter, _x, _y, step, size) {
-
-    for (let y = _y; y < _y + size; y += step) {
-        for (let x = _x; x < _x + size; x += step) {
-
-            const half = step / 2
-
-            const average_height = (matrix[x][y] + matrix[x + step][y] + matrix[x][y + step] + matrix[x + step][y + step]) / 4
-            const ri = R ** iter;
-            const random_height = ri * 2 * Math.random() - ri
-
-            matrix[x + half][y + half] = average_height + random_height
+            for (let x = half; x < this.size; x += step) {
+                this.squareInput(x, 0, iter, half)
+                this.squareInput(x, this.size, iter, half)
+            }
+            for (let y = half; y < this.size; y += step) {
+                this.squareInput(0, y, iter, half)
+                this.squareInput(this.size, y, iter, half)
+            }
         }
-    }
-}
-
-function square(iter, _x, _y, step, size) {
+        
+        //even
+        for (let y = this.y + step; y <= this.y + this.size - step; y += step) {
+            for (let x = this.x + half; x <= this.x + this.size; x += step) {
+                this.squareInput(x, y, iter, half)
+            }
+        }
     
-    const half = step / 2
-
-    //first_generation
-    if (_x == 0 && _y == 0 && size == SIZE) {
-
-        for (let x = _x + half; x <= _x + size; x += step) {
-            squareInput(x, 0, iter, half)
-            squareInput(x, size, iter, half)
-        }
-        for (let y = _y + half; y <= _y + size; y += step) {
-            squareInput(0, y, iter, half)
-            squareInput(size, y, iter, half)
+        //odd
+        for (let x = this.x + step; x <= this.x + this.size - step; x += step) {
+            for (let y = this.y + half; y <= this.y + this.size; y += step) {
+                this.squareInput(x, y, iter, half)
+            }
         }
     }
 
-    //even
-    for (let y = _y + step; y <= _y + size - step; y += step) {
-        for (let x = _x + half; x <= _x + size; x += step) {
-            squareInput(x, y, iter, half)
-        }
-    }
+    squareInput(x, y, iter, half) {
 
-    //odd
-    for (let y = _y + half; y <= _y + size; y += step) {
-        for (let x = _x + step; x <= _x + size - step; x += step) { 
-            squareInput(x, y, iter, half)
-        }
-    }
-}
-
-function squareInput(x, y, iter, half) { 
+        let average_height = 0
+        let div = 0
     
-    let average_height = 0
-    let div = 0
+        if (x - half >= 0) {
+            average_height += this.map.m[x - half][y]
+            div += 1
+        }
+        if (x + half <= this.map.SIZE) {
+            average_height += this.map.m[x + half][y]
+            div += 1
+        }
+        if (y - half >= 0) {
+            average_height += this.map.m[x][y - half]
+            div += 1
+        }
+        if (y + half <= this.map.SIZE) {
+            average_height += this.map.m[x][y + half]
+            div += 1
+        }
 
-    if (x - half >= 0) {
-        average_height += matrix[x - half][y]
-        div += 1
-    }
-    if (x + half <= SIZE) {
-        average_height += matrix[x + half][y]
-        div += 1
-    }
-    if (y - half >= 0) {
-        average_height += matrix[x][y - half]
-        div += 1
-    }
-    if (y + half <= SIZE) {
-        average_height += matrix[x][y + half]
-        div += 1
-    }
+        average_height /= div
+        const ri = this.r ** iter;
+        const random_height = ri * 2 * Math.random() - ri
+        this.map.m[x][y] = average_height + random_height
 
-    average_height /= div
-    const ri = R ** iter;
-    const random_height = ri * 2 * Math.random() - ri
-    matrix[x][y] = average_height + random_height
+    }
 }
+
+class Painter {
+    
+    constructor(_map) {
+
+        this.canvasGray = document.getElementById("canvas-gray")
+        this.canvasRGB = document.getElementById("canvas-rgb")
+        this.canvasFull = document.createElement("canvas")
+        this.map = _map
+        this.canvasFull.width = this.map.SIZE
+        this.canvasFull.height = this.map.SIZE
+        this.canvasSize = CANVAS_SIZE
+        }
+
+    draw() {
+
+        const ctxGray = this.canvasGray.getContext("2d")
+        const ctxRGB = this.canvasRGB.getContext("2d")
+        const ctxFull = this.canvasFull.getContext("2d")
+        
+        const pxSize = Math.max(1, this.canvasSize / this.map.SIZE)
+        const pxStep = Math.max(1, this.map.SIZE / this.canvasSize)
+
+        for (let j = 0; j < this.map.SIZE; j++) {
+            for (let i = 0; i < this.map.SIZE; i++) {
+
+                // FULL SIZE            
+                ctxFull.fillStyle = this.getGrayColor(i, j)
+                ctxFull.fillRect(i, j, 1, 1)
+
+                if (i % pxStep == 0 && j % pxStep == 0) {
+
+                    // GRAY SMALL
+                    ctxGray.fillStyle = ctxFull.fillStyle
+                    ctxGray.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
+
+                    // RGB SMALL
+                    ctxRGB.fillStyle = this.getRGBColor(i, j)
+                    ctxRGB.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
+                }
+
+            }
+        }
+        document.getElementById("download-button").href = this.canvasFull.toDataURL()
+    }
+
+    getGrayColor(x, y) {
+        const color = Math.trunc((0.5 + this.map.m[x][y]) * 255 / 1)
+        return `rgb(${color},${color},${color})`
+    }
+
+    getRGBColor(x, y) {
+
+        if (map.m[x][y] < 0) {
+            const color = Math.trunc((0.5 + this.map.m[x][y]) * 255 / 1.5)
+            return `rgb(${color - 20},${color - 20},${60 + color})`
+        }
+        else {
+            const color = Math.trunc((0.5 + this.map.m[x][y]) * 255 / 1.5)
+            return `rgb(${color + 40},${60 + color},${color - 20})`
+        }
+    }
+
+}
+
+// START
+
+let map
+let gen
+let painter
+
+newMap()
+
+gen.generate()
+painter.draw()
+
+document.getElementById("generate-button").addEventListener("click", newMap)
+document.getElementById("range").addEventListener("input", rangeUpdate)
