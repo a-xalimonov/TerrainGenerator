@@ -20,7 +20,8 @@ function rangeUpdate() {
 }
 
 function newMap() {
-    map = new Map(9)
+
+    map = new Map()
     gen = new Generator(map)
     painter = new Painter(map)
 
@@ -32,10 +33,10 @@ function newMap() {
 
 class Map {
 
-    constructor(_N) {
+    constructor() {
 
-        this.N = _N
-        this.SIZE = 2 ** _N
+        this.N = parseInt(document.getElementById("size").value)
+        this.SIZE = 2 ** this.N
         this.m = []
         for (let i = 0; i <= this.SIZE; i++) {
             this.m[i] = []
@@ -56,6 +57,7 @@ class Generator {
         this.y = 0
         this.n = this.map.N
         this.size = this.map.SIZE
+        this.r = document.getElementById("range").value
     }
 
     setParameters(_x, _y, _n) {
@@ -63,11 +65,11 @@ class Generator {
         this.y = _y
         this.n = _n
         this.size = 2 ** _n
+        this.r = document.getElementById("range").value
     }
 
     generate() {
 
-        this.r = document.getElementById("range").value
         let step = this.size
         let iter = 1 + this.map.N - this.n
     
@@ -171,8 +173,8 @@ class Painter {
         this.canvasRGB = document.getElementById("canvas-rgb")
         this.canvasFull = document.createElement("canvas")
         this.map = _map
-        this.canvasFull.width = this.map.SIZE
-        this.canvasFull.height = this.map.SIZE
+        this.canvasFull.width = this.map.SIZE + 1
+        this.canvasFull.height = this.map.SIZE + 1
         this.canvasSize = CANVAS_SIZE
         }
 
@@ -181,9 +183,11 @@ class Painter {
         const ctxGray = this.canvasGray.getContext("2d")
         const ctxRGB = this.canvasRGB.getContext("2d")
         const ctxFull = this.canvasFull.getContext("2d")
-        
-        const pxSize = Math.max(1, this.canvasSize / this.map.SIZE)
-        const pxStep = Math.max(1, this.map.SIZE / this.canvasSize)
+
+        const scaling = this.canvasSize / this.map.SIZE
+
+        ctxGray.clearRect(0, 0, this.map.SIZE, this.map.SIZE)
+        ctxRGB.clearRect(0, 0, this.map.SIZE, this.map.SIZE)
 
         for (let j = 0; j < this.map.SIZE; j++) {
             for (let i = 0; i < this.map.SIZE; i++) {
@@ -192,20 +196,19 @@ class Painter {
                 ctxFull.fillStyle = this.getGrayColor(i, j)
                 ctxFull.fillRect(i, j, 1, 1)
 
-                if (i % pxStep == 0 && j % pxStep == 0) {
+                // GRAY SMALL
+                ctxGray.fillStyle = ctxFull.fillStyle
+                ctxGray.fillRect(i * scaling, j * scaling, scaling, scaling)
 
-                    // GRAY SMALL
-                    ctxGray.fillStyle = ctxFull.fillStyle
-                    ctxGray.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
-
-                    // RGB SMALL
-                    ctxRGB.fillStyle = this.getRGBColor(i, j)
-                    ctxRGB.fillRect(i * pxSize / pxStep, j * pxSize / pxStep, pxSize, pxSize)
-                }
+                // RGB SMALL
+                ctxRGB.fillStyle = this.getRGBColor(i, j)
+                ctxRGB.fillRect(i * scaling, j * scaling, scaling, scaling)
 
             }
         }
         document.getElementById("download-button").href = this.canvasFull.toDataURL()
+
+        ctxGray.drawImage(this.canvasFull, 0, 0, this.canvasSize, this.canvasSize)
     }
 
     getGrayColor(x, y) {
@@ -234,9 +237,6 @@ let gen
 let painter
 
 newMap()
-
-gen.generate()
-painter.draw()
 
 document.getElementById("generate-button").addEventListener("click", newMap)
 document.getElementById("range").addEventListener("input", rangeUpdate)
